@@ -114,7 +114,12 @@ filtered_income = filtered_income[
 st.plotly_chart(fig, use_container_width=True)
 
 st.header('Analysis')
-st.header('')
+st.header('After assessing multiple countries, each country has their own trend. This can be based on the political decisions of their leaders. ')
+
+
+
+
+
 
 
 
@@ -181,4 +186,8 @@ plot_df = (
 
 
 st.plotly_chart(fig, use_container_width=True)
+
+df = pd.read_csv('tableA1(tableA1) (1).csv')
+
+
 
