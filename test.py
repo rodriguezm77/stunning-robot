@@ -18,7 +18,6 @@ gov_df = pd.read_csv("https://ourworldindata.org/grapher/average-learning-outcom
 
 gov_metadata = requests.get("https://ourworldindata.org/grapher/average-learning-outcomes-by-total-education-expenditure-per-capita.metadata.json?v=1&csvType=full&useColumnShortNames=true").json()
 
-inc_edu_df = pd.read_csv('adult.csv')
 
 
 st.header('Factors of Education')
@@ -27,7 +26,7 @@ st.subheader('Interactive Charts')
 edu_df = edu_df[
     edu_df["Population age 25+ with completed post-secondary education"] != 0]
 
-# Country selector
+
 countries = edu_df["Entity"].unique()
 selected_countries = st.multiselect(
     "Select Countries",
@@ -58,30 +57,22 @@ st.subheader('There is an obvious positive relationship between time and the per
 
 
 
-
-
-# Rename long column
 income_df = income_df.rename(columns={
-    "gini__welfare_type_income_or_consumption__table_income_or_consumption_consolidated__survey_comparability_no_spells": "gini"
-})
+    "gini__welfare_type_income_or_consumption__table_income_or_consumption_consolidated__survey_comparability_no_spells": "gini"})
 
-# Make numeric + remove 0s
 income_df["gini"] = pd.to_numeric(income_df["gini"], errors="coerce")
 income_df = income_df[(income_df["gini"] != 0) & (income_df["gini"].notna())]
 
-# Country selector
+
 selected_countries = st.multiselect(
     "Select Countries",
-    income_df["entity"].unique(),
-    default=["United States"]
-)
+    income_df["entity"].unique())
 
-# Filter
+
 filtered_income = income_df[
-    income_df["entity"].isin(selected_countries)
-]
+    income_df["entity"].isin(selected_countries)]
 
-# Create interactive chart
+
 fig = px.line(
     filtered_income,
     x="year",
@@ -107,10 +98,8 @@ year_range = st.slider(
 
 filtered_income = filtered_income[
     (filtered_income["year"] >= year_range[0]) &
-    (filtered_income["year"] <= year_range[1])
-]
+    (filtered_income["year"] <= year_range[1])]
 
-# Show in Streamlit
 st.plotly_chart(fig, use_container_width=True)
 
 st.header('Analysis')
@@ -125,13 +114,12 @@ st.header('After assessing multiple countries, each country has their own trend.
 
 st.title("Test Scores vs Government Education Spending")
 
-# Clean data
 plot_df = gov_df.dropna(subset=[
     "government_expenditure_on_education__constant_pppdollar__millions",
     "harmonized_test_scores__sex_all_students"
 ])
 
-# Optional: Region filter
+
 regions = st.multiselect(
     "Select Region(s)",
     options=plot_df["owid_region"].unique(),
@@ -140,7 +128,7 @@ regions = st.multiselect(
 
 plot_df = plot_df[plot_df["owid_region"].isin(regions)]
 
-# Optional: Year slider
+
 year_range = st.slider(
     "Select Year Range",
     int(plot_df["year"].min()),
@@ -160,7 +148,7 @@ plot_df = plot_df.sort_values("year")
 plot_df = plot_df.groupby("entity").tail(1)
 
 
-# Create interactive scatter plot
+
 fig = px.scatter(
     plot_df,
     x="government_expenditure_on_education__constant_pppdollar__millions",
@@ -169,10 +157,13 @@ fig = px.scatter(
     hover_name="entity",
     title="Test Scores vs Government Spending",
     labels={
-        "government_expenditure_on_education__constant_pppdollar__millions": "Gov Spending (PPP, millions)",
+        "government_expenditure_on_education__constant_pppdollar__millions": "Gov Spending (millions)",
         "harmonized_test_scores__sex_all_students": "Harmonized Test Scores"
     }
 )
+
+
+
 
 plot_df = (
     plot_df
@@ -181,13 +172,160 @@ plot_df = (
         "government_expenditure_on_education__constant_pppdollar__millions": "mean",
         "harmonized_test_scores__sex_all_students": "mean",
         "owid_region": "first"
-    })
-)
+    }))
 
 
 st.plotly_chart(fig, use_container_width=True)
 
-df = pd.read_csv('tableA1(tableA1) (1).csv')
+
+
+st.header('Analysis')
+st.subheader('In conclusion, while total government spending on education is a critical factor in shaping educational systems, it does not automatically translate into improved average learning outcomes. This analysis underscores the necessity of not only increasing funding but also ensuring that resources are allocated effectively to enhance teaching quality and address the diverse needs of students. As we move forward, it is essential to adopt a holistic approach that prioritizes strategic investments in education, fostering an environment where every student can succeed. Ultimately, the goal should be to create a system where financial resources are matched by innovative practices that truly enhance learning experiences and outcomes for all learners')
 
 
 
+combine_gov_inc_df = gov_df.merge(
+    income_df,
+    on=['entity', 'code', 'year'],
+    how='inner')
+
+
+
+
+
+st.set_page_config(layout="wide")
+
+st.title("Education Spending, Inequality, and Test Scores Dashboard")
+
+
+gov_df = gov_df.copy()
+income_df = income_df.copy()
+
+# Remove duplicates
+gov_df = gov_df.drop_duplicates(subset=["entity", "year"])
+income_df = income_df.drop_duplicates(subset=["entity", "year"])
+
+# Merge datasets
+combined_df = pd.merge(
+    gov_df,
+    income_df[["entity", "code", "year", "gini"]],
+    on=["entity", "code", "year"],
+    how="inner"
+)
+
+# Drop missing key values
+combined_df = combined_df.dropna(subset=[
+    "harmonized_test_scores__sex_all_students",
+    "government_expenditure_on_education__constant_pppdollar__millions",
+    "gini"
+])
+
+# ---------------------------------------------------
+# SIDEBAR FILTERS
+# ---------------------------------------------------
+st.sidebar.header("Filters")
+
+regions = st.sidebar.multiselect(
+    "Select Region(s)",
+    options=sorted(combined_df["owid_region"].dropna().unique()),
+    default=sorted(combined_df["owid_region"].dropna().unique())
+)
+
+filtered_df = combined_df[combined_df["owid_region"].isin(regions)]
+
+year = st.sidebar.slider(
+    "Select Year",
+    min_value=int(filtered_df["year"].min()),
+    max_value=int(filtered_df["year"].max()),
+    value=int(filtered_df["year"].max())
+)
+
+year_df = filtered_df[filtered_df["year"] == year]
+
+# ---------------------------------------------------
+# LAYOUT
+# ---------------------------------------------------
+col1, col2 = st.columns(2)
+
+# ---------------------------------------------------
+# 1️⃣ SPENDING VS TEST SCORES
+# ---------------------------------------------------
+with col1:
+    st.subheader(f"Spending vs Test Scores ({year})")
+
+    fig1 = px.scatter(
+        year_df,
+        x="government_expenditure_on_education__constant_pppdollar__millions",
+        y="harmonized_test_scores__sex_all_students",
+        color="owid_region",
+        hover_name="entity",
+        trendline="ols",
+        labels={
+            "government_expenditure_on_education__constant_pppdollar__millions":
+                "Gov Spending (PPP $ Millions)",
+            "harmonized_test_scores__sex_all_students":
+                "Test Scores"
+        }
+    )
+
+    st.plotly_chart(fig1, use_container_width=True)
+
+    corr1 = year_df[
+        ["government_expenditure_on_education__constant_pppdollar__millions",
+         "harmonized_test_scores__sex_all_students"]
+    ].corr().iloc[0, 1]
+
+    st.metric("Correlation", round(corr1, 3))
+
+# ---------------------------------------------------
+# 2️⃣ GINI VS TEST SCORES
+# ---------------------------------------------------
+with col2:
+    st.subheader(f"Gini vs Test Scores ({year})")
+
+    fig2 = px.scatter(
+        year_df,
+        x="gini",
+        y="harmonized_test_scores__sex_all_students",
+        color="owid_region",
+        hover_name="entity",
+        trendline="ols",
+        labels={
+            "gini": "Gini Index",
+            "harmonized_test_scores__sex_all_students": "Test Scores"
+        }
+    )
+
+    st.plotly_chart(fig2, use_container_width=True)
+
+    corr2 = year_df[
+        ["gini",
+         "harmonized_test_scores__sex_all_students"]
+    ].corr().iloc[0, 1]
+
+    st.metric("Correlation", round(corr2, 3))
+
+# ---------------------------------------------------
+# 3️⃣ COUNTRY TREND OVER TIME
+# ---------------------------------------------------
+st.subheader("Country Trends Over Time")
+
+country = st.selectbox(
+    "Select a Country",
+    sorted(filtered_df["entity"].unique())
+)
+
+country_df = filtered_df[filtered_df["entity"] == country]
+
+fig3 = px.line(
+    country_df,
+    x="year",
+    y=[
+        "harmonized_test_scores__sex_all_students",
+        "government_expenditure_on_education__constant_pppdollar__millions",
+        "gini"
+    ],
+    labels={"value": "Value", "variable": "Metric"}
+)
+
+st.plotly_chart(fig3, use_container_width=True)
