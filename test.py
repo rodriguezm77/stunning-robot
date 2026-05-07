@@ -220,8 +220,38 @@ combined_df = combined_df.dropna(subset=[
     "gini"
 ])
 
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+st.set_page_config(layout="wide")
+
+st.title("Education Spending, Inequality, and Test Scores Dashboard")
+
 # ---------------------------------------------------
-# SIDEBAR FILTERS
+# CLEAN DATA
+# ---------------------------------------------------
+gov_df = gov_df.copy()
+income_df = income_df.copy()
+
+gov_df = gov_df.drop_duplicates(subset=["entity", "year"])
+income_df = income_df.drop_duplicates(subset=["entity", "year"])
+
+combined_df = pd.merge(
+    gov_df,
+    income_df[["entity", "code", "year", "gini"]],
+    on=["entity", "code", "year"],
+    how="inner"
+)
+
+combined_df = combined_df.dropna(subset=[
+    "harmonized_test_scores__sex_all_students",
+    "government_expenditure_on_education__constant_pppdollar__millions",
+    "gini"
+])
+
+# ---------------------------------------------------
+# SIDEBAR FILTER
 # ---------------------------------------------------
 st.sidebar.header("Filters")
 
@@ -233,33 +263,26 @@ regions = st.sidebar.multiselect(
 
 filtered_df = combined_df[combined_df["owid_region"].isin(regions)]
 
-year = st.sidebar.slider(
-    "Select Year",
-    min_value=int(filtered_df["year"].min()),
-    max_value=int(filtered_df["year"].max()),
-    value=int(filtered_df["year"].max())
-)
-
-year_df = filtered_df[filtered_df["year"] == year]
-
 # ---------------------------------------------------
 # LAYOUT
 # ---------------------------------------------------
 col1, col2 = st.columns(2)
 
 # ---------------------------------------------------
-# 1️⃣ SPENDING VS TEST SCORES
+# 1️⃣ SPENDING VS TEST SCORES (ALL YEARS)
 # ---------------------------------------------------
 with col1:
-    st.subheader(f"Spending vs Test Scores ({year})")
+    st.subheader("Spending vs Test Scores (All Years)")
 
     fig1 = px.scatter(
-        year_df,
+        filtered_df,
         x="government_expenditure_on_education__constant_pppdollar__millions",
         y="harmonized_test_scores__sex_all_students",
         color="owid_region",
         hover_name="entity",
         trendline="ols",
+        log_x = True,
+        opacity=0.6,
         labels={
             "government_expenditure_on_education__constant_pppdollar__millions":
                 "Gov Spending (PPP $ Millions)",
@@ -270,26 +293,22 @@ with col1:
 
     st.plotly_chart(fig1, use_container_width=True)
 
-    corr1 = year_df[
-        ["government_expenditure_on_education__constant_pppdollar__millions",
-         "harmonized_test_scores__sex_all_students"]
-    ].corr().iloc[0, 1]
-
-    st.metric("Correlation", round(corr1, 3))
+    
 
 # ---------------------------------------------------
-# 2️⃣ GINI VS TEST SCORES
+# 2️⃣ GINI VS TEST SCORES (ALL YEARS)
 # ---------------------------------------------------
 with col2:
-    st.subheader(f"Gini vs Test Scores ({year})")
+    st.subheader("Gini vs Test Scores (All Years)")
 
     fig2 = px.scatter(
-        year_df,
+        filtered_df,
         x="gini",
         y="harmonized_test_scores__sex_all_students",
         color="owid_region",
         hover_name="entity",
         trendline="ols",
+        opacity=0.6,
         labels={
             "gini": "Gini Index",
             "harmonized_test_scores__sex_all_students": "Test Scores"
@@ -298,15 +317,10 @@ with col2:
 
     st.plotly_chart(fig2, use_container_width=True)
 
-    corr2 = year_df[
-        ["gini",
-         "harmonized_test_scores__sex_all_students"]
-    ].corr().iloc[0, 1]
-
-    st.metric("Correlation", round(corr2, 3))
+    
 
 # ---------------------------------------------------
-# 3️⃣ COUNTRY TREND OVER TIME
+# 3️⃣ COUNTRY TRENDS
 # ---------------------------------------------------
 st.subheader("Country Trends Over Time")
 
